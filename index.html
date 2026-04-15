@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Auto Website Tester</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            background: rgba(255,255,255,0.05);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 700px;
+            margin: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        input {
+            padding: 12px;
+            width: 70%;
+            border-radius: 10px;
+            border: none;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: none;
+            background: #22c55e;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #16a34a;
+        }
+
+        .result {
+            margin-top: 25px;
+            text-align: left;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.08);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .pass { color: #22c55e; }
+        .fail { color: #ef4444; }
+
+        .loader {
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 5px solid #1e293b;
+            border-top: 5px solid #22c55e;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        img {
+            margin-top: 15px;
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .small {
+            font-size: 12px;
+            color: #cbd5f5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🚀 Auto Website Tester</h1>
+
+    <div class="container">
+        <input id="url" placeholder="Enter website URL (https://...)" />
+        <button onclick="testWebsite()">Test</button>
+
+        <div id="output"></div>
+    </div>
+
+<script>
+async function testWebsite() {
+    const url = document.getElementById("url").value;
+
+    if (!url) {
+        alert("Enter URL");
+        return;
+    }
+
+    // 🔥 Loader UI
+    document.getElementById("output").innerHTML = `
+        <div class="loader">
+            <div class="spinner"></div>
+            <p>Testing website... please wait</p>
+        </div>
+    `;
+
+    const res = await fetch("https://webtest-production-a1ff.up.railway.app/test", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ url })
+    });
+
+    const data = await res.json();
+
+    let html = '<div class="result">';
+
+    data.results.forEach(r => {
+        html += `
+            <div class="card">
+                <strong>${r.test}</strong> :
+                <span class="${r.status === 'Passed' ? 'pass' : 'fail'}">
+                    ${r.status || ''}
+                </span>
+        `;
+
+        if (r.brokenCount !== undefined) {
+            html += `<div>Broken Count: ${r.brokenCount}</div>`;
+        }
+
+        if (r.sample && r.sample.length > 0) {
+            html += `<div class="small">Examples:</div>`;
+            r.sample.forEach(link => {
+                html += `<div class="small">🔗 ${link}</div>`;
+            });
+        }
+
+        html += `</div>`;
+    });
+
+    // Screenshot
+    if (data.screenshot) {
+        html += `
+            <div class="card">
+                <h3>📸 Screenshot</h3>
+                <img src="http://localhost:3000/${data.screenshot}" />
+            </div>
+        `;
+    }
+
+    html += '</div>';
+
+    document.getElementById("output").innerHTML = html;
+}
+</script>
+
+</body>
+</html>
