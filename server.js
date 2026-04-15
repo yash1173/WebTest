@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { chromium } = require('playwright');
-
+const { chromium } = require('playwright-core');
 const app = express();
 
 app.use(cors());
