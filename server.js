@@ -1,12 +1,25 @@
 const express = require('express');
 const cors = require('cors');
-const { chromium } = require('playwright-core');
+const { chromium } = require('playwright');
+const { execSync } = require('child_process');
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// 🔥 FORCE INSTALL PLAYWRIGHT BROWSER (RAILWAY FIX)
+try {
+    console.log("Installing Playwright Chromium...");
+    execSync('npx playwright install chromium', { stdio: 'inherit' });
+} catch (e) {
+    console.log("Playwright install skipped");
+}
+
+// ======================
+// TEST API
+// ======================
 app.post('/test', async (req, res) => {
     const { url } = req.body;
 
@@ -15,7 +28,8 @@ app.post('/test', async (req, res) => {
     }
 
     const browser = await chromium.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        headless: true
     });
 
     const page = await browser.newPage();
@@ -23,7 +37,8 @@ app.post('/test', async (req, res) => {
     let results = [];
 
     try {
-        await page.goto(url, { timeout: 15000 });
+        // PAGE LOAD
+        await page.goto(url, { timeout: 10000 });
 
         const title = await page.title();
 
@@ -36,79 +51,88 @@ app.post('/test', async (req, res) => {
             title
         });
 
-        // Links
+        // ======================
+        // FAST BROKEN LINKS CHECK
+        // ======================
+        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
         let brokenLinks = [];
+
         const links = await page.$$eval('a', a => a.map(x => x.href));
-        const uniqueLinks = [...new Set(links)];
+        const uniqueLinks = [...new Set(links)].slice(0, 10); // 🔥 limit
 
-        for (let link of uniqueLinks) {
-            if (!link || !link.startsWith('http')) continue;
-
-            const p = await browser.newPage();
+        await Promise.all(uniqueLinks.map(async (link) => {
+            if (!link || !link.startsWith('http')) return;
 
             try {
-                const r = await p.goto(link, { timeout: 5000 });
-                if (!r || r.status() >= 400) brokenLinks.push(link);
+                const res = await fetch(link);
+                if (res.status >= 400) brokenLinks.push(link);
             } catch {
                 brokenLinks.push(link);
             }
-
-            await p.close();
-        }
+        }));
 
         results.push({
             test: "Broken Links",
             status: brokenLinks.length ? "Failed" : "Passed",
-            brokenCount: brokenLinks.length
+            brokenCount: brokenLinks.length,
+            sample: brokenLinks.slice(0, 5)
         });
 
-        // Images
+        // ======================
+        // FAST BROKEN IMAGES CHECK
+        // ======================
         let brokenImages = [];
+
         const images = await page.$$eval('img', i => i.map(x => x.src));
-        const uniqueImages = [...new Set(images)];
+        const uniqueImages = [...new Set(images)].slice(0, 10); // 🔥 limit
 
-        for (let img of uniqueImages) {
-            if (!img || img.startsWith('data:')) continue;
-
-            const p = await browser.newPage();
+        await Promise.all(uniqueImages.map(async (img) => {
+            if (!img || img.startsWith('data:')) return;
 
             try {
-                const r = await p.goto(img, { timeout: 5000 });
-                if (!r || r.status() >= 400) brokenImages.push(img);
+                const res = await fetch(img);
+                if (res.status >= 400) brokenImages.push(img);
             } catch {
                 brokenImages.push(img);
             }
-
-            await p.close();
-        }
+        }));
 
         results.push({
             test: "Broken Images",
             status: brokenImages.length ? "Failed" : "Passed",
-            brokenCount: brokenImages.length
+            brokenCount: brokenImages.length,
+            sample: brokenImages.slice(0, 5)
         });
 
         await browser.close();
 
-        res.json({ results, screenshot: screenshotPath });
+        res.json({
+            results,
+            screenshot: screenshotPath
+        });
 
     } catch (err) {
         await browser.close();
 
         res.json({
-            results: [{
-                test: "Page Load",
-                status: "Failed",
-                error: err.message
-            }]
+            results: [
+                {
+                    test: "Page Load",
+                    status: "Failed",
+                    error: err.message
+                }
+            ]
         });
     }
 });
 
+// ROOT
 app.get('/', (req, res) => {
     res.send("🚀 Website Tester API Running");
 });
 
+// SERVER START
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
