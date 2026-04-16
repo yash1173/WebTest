@@ -6,7 +6,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); // serve screenshots
+app.use(express.static(__dirname));
 
 app.post('/test', async (req, res) => {
     const { url } = req.body;
@@ -15,21 +15,20 @@ app.post('/test', async (req, res) => {
         return res.json({ error: "URL is required" });
     }
 
-    const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-
-    let results = [];
+    let browser;
 
     try {
+        browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+
+        const page = await browser.newPage();
+
         await page.goto(url, { timeout: 10000 });
 
         const title = await page.title();
 
-        const screenshotPath = `screenshot-${Date.now()}.png`;
-        await page.screenshot({ path: screenshotPath });
+        let results = [];
 
         results.push({
             test: "Page Load",
@@ -37,7 +36,13 @@ app.post('/test', async (req, res) => {
             title
         });
 
-        // FAST LINK CHECK
+        // 🔥 SCREENSHOT (BASE64 - FIXED)
+        const screenshot = await page.screenshot({
+            encoding: 'base64',
+            fullPage: true
+        });
+
+        // 🔥 FAST LINK CHECK
         const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
         let brokenLinks = [];
@@ -49,8 +54,8 @@ app.post('/test', async (req, res) => {
             if (!link || !link.startsWith('http')) return;
 
             try {
-                const res = await fetch(link);
-                if (res.status >= 400) brokenLinks.push(link);
+                const response = await fetch(link);
+                if (response.status >= 400) brokenLinks.push(link);
             } catch {
                 brokenLinks.push(link);
             }
@@ -59,28 +64,28 @@ app.post('/test', async (req, res) => {
         results.push({
             test: "Broken Links",
             status: brokenLinks.length ? "Failed" : "Passed",
-            brokenCount: brokenLinks.length
+            brokenCount: brokenLinks.length,
+            sample: brokenLinks.slice(0, 5)
         });
 
         await browser.close();
-
-        // 🔥 IMPORTANT FIX (FULL URL)
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
 
         res.json({
             results,
-            screenshot: `${baseUrl}/${screenshotPath}`
+            screenshot: `data:image/png;base64,${screenshot}`
         });
 
     } catch (err) {
-        await browser.close();
+        if (browser) await browser.close();
 
         res.json({
-            results: [{
-                test: "Page Load",
-                status: "Failed",
-                error: err.message
-            }]
+            results: [
+                {
+                    test: "Page Load",
+                    status: "Failed",
+                    error: err.message
+                }
+            ]
         });
     }
 });
