@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 app.post('/test', async (req, res) => {
-    const { url, username, password } = req.body;
+    const { url, username, password, userSelector, passSelector, btnSelector } = req.body;
 
     if (!url) {
         return res.json({ error: "URL is required" });
@@ -28,73 +28,66 @@ app.post('/test', async (req, res) => {
         let results = [];
 
         // ======================
-        // 🔐 UNIVERSAL LOGIN TEST
+        // 🔐 LOGIN TEST (SMART + WAIT)
         // ======================
         if (username && password) {
             try {
-                const userSelectors = [
-                    'input[type="email"]',
-                    'input[name="email"]',
-                    'input[name="username"]',
-                    'input[name="login"]',
-                    'input[id*="user"]',
-                    'input[id*="email"]',
-                    'input[type="text"]'
-                ];
-
-                const passSelectors = [
-                    'input[type="password"]',
-                    'input[name="password"]',
-                    'input[id*="pass"]'
-                ];
-
-                const buttonSelectors = [
-                    'button[type="submit"]',
-                    'button',
-                    'input[type="submit"]',
-                    '[role="button"]'
-                ];
-
                 let userFieldFound = false;
                 let passFieldFound = false;
                 let loginClicked = false;
 
-                // Fill username/email
-                for (let sel of userSelectors) {
-                    const el = await page.$(sel);
-                    if (el) {
-                        await el.click({ clickCount: 3 });
-                        await el.type(username, { delay: 50 });
-                        userFieldFound = true;
-                        break;
-                    }
+                // ✅ CUSTOM SELECTORS
+                if (userSelector) {
+                    await page.waitForSelector(userSelector, { visible: true, timeout: 5000 });
+                    await page.type(userSelector, username, { delay: 50 });
+                    userFieldFound = true;
                 }
 
-                // Fill password
-                for (let sel of passSelectors) {
-                    const el = await page.$(sel);
-                    if (el) {
-                        await el.click({ clickCount: 3 });
-                        await el.type(password, { delay: 50 });
-                        passFieldFound = true;
-                        break;
-                    }
+                if (passSelector) {
+                    await page.waitForSelector(passSelector, { visible: true, timeout: 5000 });
+                    await page.type(passSelector, password, { delay: 50 });
+                    passFieldFound = true;
                 }
 
-                // Click login button
-                for (let sel of buttonSelectors) {
-                    const btn = await page.$(sel);
-                    if (btn) {
-                        await Promise.all([
-                            btn.click(),
-                            page.waitForNavigation({ timeout: 10000 }).catch(() => {})
-                        ]);
-                        loginClicked = true;
-                        break;
-                    }
+                if (btnSelector) {
+                    await page.waitForSelector(btnSelector, { visible: true, timeout: 5000 });
+
+                    await Promise.all([
+                        page.click(btnSelector),
+                        page.waitForNavigation({ timeout: 10000 }).catch(() => {})
+                    ]);
+
+                    loginClicked = true;
                 }
 
-                // Detect success
+                // 🔁 FALLBACK AUTO MODE
+                if (!userFieldFound) {
+                    const el = await page.waitForSelector(
+                        'input[type="email"], input[type="text"]',
+                        { timeout: 5000 }
+                    );
+                    await el.type(username);
+                    userFieldFound = true;
+                }
+
+                if (!passFieldFound) {
+                    const el = await page.waitForSelector('input[type="password"]', { timeout: 5000 });
+                    await el.type(password);
+                    passFieldFound = true;
+                }
+
+                if (!loginClicked) {
+                    const btn = await page.waitForSelector('button, input[type="submit"]', { timeout: 5000 });
+
+                    await Promise.all([
+                        btn.click(),
+                        page.waitForNavigation({ timeout: 10000 }).catch(() => {})
+                    ]);
+
+                    loginClicked = true;
+                }
+
+                // ✅ SUCCESS CHECK
                 const currentUrl = page.url();
 
                 let success = false;
