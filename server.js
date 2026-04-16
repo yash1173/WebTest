@@ -28,11 +28,11 @@ app.post('/test', async (req, res) => {
         let results = [];
 
         // ======================
-        // 🔐 LOGIN TEST (FIXED)
+        // 🔐 LOGIN TEST
         // ======================
         if (username && password) {
             try {
-                // USERNAME
+                // Username
                 const userField = await page.waitForSelector(
                     'input[type="text"], input[type="email"]',
                     { visible: true, timeout: 5000 }
@@ -41,7 +41,7 @@ app.post('/test', async (req, res) => {
                 await userField.click({ clickCount: 3 });
                 await userField.type(username, { delay: 50 });
 
-                // PASSWORD
+                // Password
                 const passField = await page.waitForSelector(
                     'input[type="password"]',
                     { visible: true, timeout: 5000 }
@@ -50,19 +50,16 @@ app.post('/test', async (req, res) => {
                 await passField.click({ clickCount: 3 });
                 await passField.type(password, { delay: 50 });
 
-                // ======================
-                // 🔥 SMART BUTTON FIND
-                // ======================
+                // Button detection
                 let btn;
-
-                const buttonSelectors = [
+                const selectors = [
                     '#submit',
                     'button[type="submit"]',
                     'input[type="submit"]',
                     'button'
                 ];
 
-                for (let sel of buttonSelectors) {
+                for (let sel of selectors) {
                     try {
                         btn = await page.waitForSelector(sel, { visible: true, timeout: 2000 });
                         if (btn) break;
@@ -71,16 +68,15 @@ app.post('/test', async (req, res) => {
 
                 if (!btn) throw new Error("Login button not found");
 
-                // Fix click issue
+                // Scroll + wait fix
                 await btn.evaluate(el => el.scrollIntoView());
-                await page.waitForTimeout(500);
+                await new Promise(r => setTimeout(r, 500));
 
                 await Promise.all([
                     btn.click({ delay: 50 }),
                     page.waitForNavigation({ timeout: 10000 }).catch(() => {})
                 ]);
 
-                // RESULT
                 const success = page.url() !== url;
 
                 results.push({
@@ -98,7 +94,7 @@ app.post('/test', async (req, res) => {
         }
 
         // ======================
-        // 📄 PAGE LOAD
+        // PAGE LOAD
         // ======================
         const title = await page.title();
 
@@ -109,7 +105,7 @@ app.post('/test', async (req, res) => {
         });
 
         // ======================
-        // 📸 SCREENSHOT
+        // SCREENSHOT
         // ======================
         const screenshot = await page.screenshot({
             encoding: 'base64',
@@ -117,7 +113,7 @@ app.post('/test', async (req, res) => {
         });
 
         // ======================
-        // 🔗 BROKEN LINKS
+        // BROKEN LINKS
         // ======================
         const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -163,12 +159,10 @@ app.post('/test', async (req, res) => {
     }
 });
 
-// ROOT
 app.get('/', (req, res) => {
     res.send("🚀 Website Tester API Running");
 });
 
-// START SERVER
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

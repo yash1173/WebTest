@@ -1,197 +1,103 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Auto Website Tester</title>
+<title>Auto Website Tester</title>
 
-    <style>
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            color: white;
-            text-align: center;
-            padding: 40px;
-        }
+<style>
+body {
+    background: #0f172a;
+    color: white;
+    font-family: sans-serif;
+    text-align: center;
+    padding: 40px;
+}
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-        }
+.container {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 600px;
+    margin: auto;
+}
 
-        .container {
-            background: rgba(255,255,255,0.05);
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 700px;
-            margin: auto;
-            backdrop-filter: blur(10px);
-        }
+input {
+    width: 80%;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 8px;
+    border: none;
+}
 
-        input {
-            padding: 12px;
-            width: 80%;
-            border-radius: 10px;
-            border: none;
-            margin: 8px 0;
-        }
+button {
+    padding: 10px 20px;
+    background: green;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
 
-        button {
-            padding: 12px 20px;
-            border-radius: 10px;
-            border: none;
-            background: #22c55e;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 10px;
-        }
+.card {
+    background: #334155;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+}
+.pass { color: #22c55e; }
+.fail { color: #ef4444; }
 
-        button:hover {
-            background: #16a34a;
-        }
-
-        .result {
-            margin-top: 25px;
-            text-align: left;
-        }
-
-        .card {
-            background: rgba(255,255,255,0.08);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-        }
-
-        .pass { color: #22c55e; }
-        .fail { color: #ef4444; }
-
-        .loader {
-            margin-top: 20px;
-        }
-
-        .spinner {
-            border: 5px solid #1e293b;
-            border-top: 5px solid #22c55e;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        img {
-            margin-top: 15px;
-            width: 100%;
-            border-radius: 10px;
-        }
-
-        .small {
-            font-size: 12px;
-            color: #cbd5f5;
-        }
-    </style>
+img {
+    width: 100%;
+    margin-top: 10px;
+}
+</style>
 </head>
 
 <body>
 
-    <h1>🚀 Auto Website Tester</h1>
+<h1>🚀 Auto Website Tester</h1>
 
-    <div class="container">
-        <input id="url" placeholder="Enter website URL (https://...)" />
-        
-        <!-- 🔐 Login Inputs -->
-        <input id="username" placeholder="Username / Email (optional)" />
-        <input id="password" type="password" placeholder="Password (optional)" />
+<div class="container">
+    <input id="url" placeholder="Website URL">
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="test()">Test</button>
 
-        <button onclick="testWebsite()">Test</button>
-
-        <div id="output"></div>
-    </div>
+    <div id="output"></div>
+</div>
 
 <script>
-async function testWebsite() {
+async function test() {
     const url = document.getElementById("url").value;
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
 
-    if (!url) {
-        alert("Enter URL");
-        return;
-    }
+    document.getElementById("output").innerHTML = "Testing...";
 
-    // Loader
-    document.getElementById("output").innerHTML = `
-        <div class="loader">
-            <div class="spinner"></div>
-            <p>Testing website... please wait</p>
-        </div>
-    `;
-
-    const res = await fetch("https://webtest-production-a1ff.up.railway.app/test", {
+    const res = await fetch("/test", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, username, password })
     });
 
     const data = await res.json();
 
-    let html = '<div class="result">';
+    let html = "";
 
     data.results.forEach(r => {
         html += `
-            <div class="card">
-                <strong>${r.test}</strong> :
-                <span class="${r.status === 'Passed' ? 'pass' : 'fail'}">
-                    ${r.status || ''}
-                </span>
-        `;
-
-        if (r.error) {
-            html += `<div class="small">Error: ${r.error}</div>`;
-        }
-
-        // 🔥 LOGIN DEBUG INFO
-        if (r.details) {
-            html += `
-                <div class="small">Username field found: ${r.details.userFieldFound}</div>
-                <div class="small">Password field found: ${r.details.passFieldFound}</div>
-                <div class="small">Login button clicked: ${r.details.loginClicked}</div>
-            `;
-        }
-
-        if (r.brokenCount !== undefined) {
-            html += `<div>Broken Count: ${r.brokenCount}</div>`;
-        }
-
-        if (r.sample && r.sample.length > 0) {
-            html += `<div class="small">Examples:</div>`;
-            r.sample.forEach(link => {
-                html += `<div class="small">🔗 ${link}</div>`;
-            });
-        }
-
-        html += `</div>`;
+        <div class="card">
+            ${r.test} :
+            <span class="${r.status === 'Passed' ? 'pass' : 'fail'}">
+                ${r.status}
+            </span>
+            ${r.error ? `<div>${r.error}</div>` : ""}
+        </div>`;
     });
 
-    // 📸 Screenshot (BASE64)
     if (data.screenshot) {
-        html += `
-            <div class="card">
-                <h3>📸 Screenshot</h3>
-                <img src="${data.screenshot}" />
-            </div>
-        `;
+        html += `<div class="card"><img src="${data.screenshot}"></div>`;
     }
-
-    html += '</div>';
 
     document.getElementById("output").innerHTML = html;
 }
