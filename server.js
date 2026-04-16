@@ -28,37 +28,105 @@ app.post('/test', async (req, res) => {
         let results = [];
 
         // ======================
-        // 🔐 LOGIN TEST
+        // 🔐 UNIVERSAL LOGIN TEST
         // ======================
         if (username && password) {
             try {
-                // try common selectors
-                await page.type('input[type="text"], input[type="email"]', username, { delay: 50 });
-                await page.type('input[type="password"]', password, { delay: 50 });
+                const userSelectors = [
+                    'input[type="email"]',
+                    'input[name="email"]',
+                    'input[name="username"]',
+                    'input[name="login"]',
+                    'input[id*="user"]',
+                    'input[id*="email"]',
+                    'input[type="text"]'
+                ];
 
-                await Promise.all([
-                    page.click('button, input[type="submit"]'),
-                    page.waitForNavigation({ timeout: 10000 }).catch(() => {})
-                ]);
+                const passSelectors = [
+                    'input[type="password"]',
+                    'input[name="password"]',
+                    'input[id*="pass"]'
+                ];
 
+                const buttonSelectors = [
+                    'button[type="submit"]',
+                    'button',
+                    'input[type="submit"]',
+                    '[role="button"]'
+                ];
+
+                let userFieldFound = false;
+                let passFieldFound = false;
+                let loginClicked = false;
+
+                // Fill username/email
+                for (let sel of userSelectors) {
+                    const el = await page.$(sel);
+                    if (el) {
+                        await el.click({ clickCount: 3 });
+                        await el.type(username, { delay: 50 });
+                        userFieldFound = true;
+                        break;
+                    }
+                }
+
+                // Fill password
+                for (let sel of passSelectors) {
+                    const el = await page.$(sel);
+                    if (el) {
+                        await el.click({ clickCount: 3 });
+                        await el.type(password, { delay: 50 });
+                        passFieldFound = true;
+                        break;
+                    }
+                }
+
+                // Click login button
+                for (let sel of buttonSelectors) {
+                    const btn = await page.$(sel);
+                    if (btn) {
+                        await Promise.all([
+                            btn.click(),
+                            page.waitForNavigation({ timeout: 10000 }).catch(() => {})
+                        ]);
+                        loginClicked = true;
+                        break;
+                    }
+                }
+
+                // Detect success
                 const currentUrl = page.url();
+
+                let success = false;
+
+                if (currentUrl !== url) {
+                    success = true;
+                } else {
+                    const stillHasPassword = await page.$('input[type="password"]');
+                    if (!stillHasPassword) success = true;
+                }
 
                 results.push({
                     test: "Login Test",
-                    status: currentUrl !== url ? "Passed" : "Failed"
+                    status: success ? "Passed" : "Failed",
+                    details: {
+                        userFieldFound,
+                        passFieldFound,
+                        loginClicked
+                    }
                 });
 
             } catch (err) {
                 results.push({
                     test: "Login Test",
                     status: "Failed",
-                    error: "Could not perform login"
+                    error: err.message
                 });
             }
         }
 
         // ======================
-        // 📄 PAGE LOAD
+        // 📄 PAGE LOAD TEST
         // ======================
         const title = await page.title();
 
@@ -77,7 +145,7 @@ app.post('/test', async (req, res) => {
         });
 
         // ======================
-        // 🔗 BROKEN LINKS CHECK
+        // 🔗 BROKEN LINKS TEST
         // ======================
         const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -131,6 +199,7 @@ app.get('/', (req, res) => {
     res.send("🚀 Website Tester API Running");
 });
 
+// SERVER START
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
