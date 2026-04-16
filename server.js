@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer');
-
+const puppeteer = require('puppeteer-core');
 const app = express();
 
 app.use(cors());
@@ -18,9 +17,10 @@ app.post('/test', async (req, res) => {
     let browser;
 
     try {
-        browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const browser = await puppeteer.launch({
+        executablePath: '/usr/bin/chromium-browser',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
 
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
