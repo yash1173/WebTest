@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
+
 const app = express();
 
 app.use(cors());
@@ -17,10 +18,9 @@ app.post('/test', async (req, res) => {
     let browser;
 
     try {
-        const browser = await puppeteer.launch({
-        executablePath: '/usr/bin/chromium-browser',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+        browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
 
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -30,35 +30,71 @@ app.post('/test', async (req, res) => {
         // ======================
         // 🔐 LOGIN TEST
         // ======================
-        // 🔐 FIXED LOGIN (NO GENERIC LOGIC)
-if (username && password) {
-    try {
-        await page.waitForSelector('#username');
-        await page.type('#username', username);
+        if (username && password) {
+            try {
+                // USERNAME FIELD
+                const userField = await page.waitForSelector(
+                    'input[type="text"], input[type="email"]',
+                    { visible: true, timeout: 5000 }
+                );
 
-        await page.waitForSelector('#password');
-        await page.type('#password', password);
+                await userField.click({ clickCount: 3 });
+                await userField.type(username);
 
-        await Promise.all([
-            page.click('#submit'),
-            page.waitForNavigation({ timeout: 10000 })
-        ]);
+                // PASSWORD FIELD
+                const passField = await page.waitForSelector(
+                    'input[type="password"]',
+                    { visible: true, timeout: 5000 }
+                );
 
-        const success = page.url().includes('logged-in-successfully');
+                await passField.click({ clickCount: 3 });
+                await passField.type(password);
 
-        results.push({
-            test: "Login Test",
-            status: success ? "Passed" : "Failed"
-        });
+                // BUTTON (SMART FIND)
+                let btn;
 
-    } catch (err) {
-        results.push({
-            test: "Login Test",
-            status: "Failed",
-            error: err.message
-        });
-    }
-}
+                const selectors = [
+                    '#submit',
+                    'button[type="submit"]',
+                    'input[type="submit"]',
+                    'button'
+                ];
+
+                for (let sel of selectors) {
+                    try {
+                        btn = await page.waitForSelector(sel, { visible: true, timeout: 2000 });
+                        if (btn) break;
+                    } catch {}
+                }
+
+                if (!btn) throw new Error("Login button not found");
+
+                // Scroll into view (NO waitForTimeout)
+                await btn.evaluate(el => el.scrollIntoView());
+
+                // Click safely
+                await btn.click();
+
+                // Wait for navigation (optional)
+                try {
+                    await page.waitForNavigation({ timeout: 8000 });
+                } catch {}
+
+                const success = page.url() !== url;
+
+                results.push({
+                    test: "Login Test",
+                    status: success ? "Passed" : "Failed"
+                });
+
+            } catch (err) {
+                results.push({
+                    test: "Login Test",
+                    status: "Failed",
+                    error: err.message
+                });
+            }
+        }
 
         // ======================
         // PAGE LOAD
