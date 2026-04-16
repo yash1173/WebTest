@@ -30,10 +30,10 @@
 
         input {
             padding: 12px;
-            width: 70%;
+            width: 80%;
             border-radius: 10px;
             border: none;
-            margin-right: 10px;
+            margin: 8px 0;
         }
 
         button {
@@ -44,6 +44,7 @@
             color: white;
             cursor: pointer;
             font-weight: bold;
+            margin-top: 10px;
         }
 
         button:hover {
@@ -103,6 +104,11 @@
 
     <div class="container">
         <input id="url" placeholder="Enter website URL (https://...)" />
+        
+        <!-- 🔐 Login Inputs -->
+        <input id="username" placeholder="Username (optional)" />
+        <input id="password" type="password" placeholder="Password (optional)" />
+
         <button onclick="testWebsite()">Test</button>
 
         <div id="output"></div>
@@ -111,12 +117,15 @@
 <script>
 async function testWebsite() {
     const url = document.getElementById("url").value;
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
 
     if (!url) {
         alert("Enter URL");
         return;
     }
 
+    // Loader
     document.getElementById("output").innerHTML = `
         <div class="loader">
             <div class="spinner"></div>
@@ -129,7 +138,7 @@ async function testWebsite() {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url, username, password })
     });
 
     const data = await res.json();
@@ -145,6 +154,10 @@ async function testWebsite() {
                 </span>
         `;
 
+        if (r.error) {
+            html += `<div class="small">Error: ${r.error}</div>`;
+        }
+
         if (r.brokenCount !== undefined) {
             html += `<div>Broken Count: ${r.brokenCount}</div>`;
         }
@@ -159,7 +172,7 @@ async function testWebsite() {
         html += `</div>`;
     });
 
-    // ✅ FIXED Screenshot (Base64)
+    // 📸 Screenshot (BASE64 FIX)
     if (data.screenshot) {
         html += `
             <div class="card">

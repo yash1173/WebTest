@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 app.post('/test', async (req, res) => {
-    const { url } = req.body;
+    const { url, username, password } = req.body;
 
     if (!url) {
         return res.json({ error: "URL is required" });
@@ -23,12 +23,44 @@ app.post('/test', async (req, res) => {
         });
 
         const page = await browser.newPage();
-
-        await page.goto(url, { timeout: 10000 });
-
-        const title = await page.title();
+        await page.goto(url, { timeout: 15000 });
 
         let results = [];
+
+        // ======================
+        // 🔐 LOGIN TEST
+        // ======================
+        if (username && password) {
+            try {
+                // try common selectors
+                await page.type('input[type="text"], input[type="email"]', username, { delay: 50 });
+                await page.type('input[type="password"]', password, { delay: 50 });
+
+                await Promise.all([
+                    page.click('button, input[type="submit"]'),
+                    page.waitForNavigation({ timeout: 10000 }).catch(() => {})
+                ]);
+
+                const currentUrl = page.url();
+
+                results.push({
+                    test: "Login Test",
+                    status: currentUrl !== url ? "Passed" : "Failed"
+                });
+
+            } catch (err) {
+                results.push({
+                    test: "Login Test",
+                    status: "Failed",
+                    error: "Could not perform login"
+                });
+            }
+        }
+
+        // ======================
+        // 📄 PAGE LOAD
+        // ======================
+        const title = await page.title();
 
         results.push({
             test: "Page Load",
@@ -36,13 +68,17 @@ app.post('/test', async (req, res) => {
             title
         });
 
-        // 🔥 SCREENSHOT (BASE64 - FIXED)
+        // ======================
+        // 📸 SCREENSHOT (BASE64)
+        // ======================
         const screenshot = await page.screenshot({
             encoding: 'base64',
             fullPage: true
         });
 
-        // 🔥 FAST LINK CHECK
+        // ======================
+        // 🔗 BROKEN LINKS CHECK
+        // ======================
         const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
         let brokenLinks = [];
@@ -90,6 +126,7 @@ app.post('/test', async (req, res) => {
     }
 });
 
+// ROOT
 app.get('/', (req, res) => {
     res.send("🚀 Website Tester API Running");
 });
