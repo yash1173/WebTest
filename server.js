@@ -23,97 +23,52 @@ app.post('/test', async (req, res) => {
         });
 
         const page = await browser.newPage();
-        await page.goto(url, { timeout: 15000 });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
         let results = [];
 
         // ======================
-        // 🔐 UNIVERSAL LOGIN TEST
+        // 🔐 LOGIN TEST (STABLE)
         // ======================
         if (username && password) {
             try {
-                const userSelectors = [
-                    'input[type="email"]',
-                    'input[name="email"]',
-                    'input[name="username"]',
-                    'input[name="login"]',
-                    'input[id*="user"]',
-                    'input[id*="email"]',
-                    'input[type="text"]'
-                ];
+                // wait for inputs
+                const userField = await page.waitForSelector(
+                    'input[type="text"], input[type="email"]',
+                    { visible: true, timeout: 5000 }
+                );
 
-                const passSelectors = [
+                await userField.click({ clickCount: 3 });
+                await userField.type(username, { delay: 50 });
+
+                const passField = await page.waitForSelector(
                     'input[type="password"]',
-                    'input[name="password"]',
-                    'input[id*="pass"]'
-                ];
+                    { visible: true, timeout: 5000 }
+                );
 
-                const buttonSelectors = [
-                    'button[type="submit"]',
-                    'button',
-                    'input[type="submit"]',
-                    '[role="button"]'
-                ];
+                await passField.click({ clickCount: 3 });
+                await passField.type(password, { delay: 50 });
 
-                let userFieldFound = false;
-                let passFieldFound = false;
-                let loginClicked = false;
+                // wait for button
+                const btn = await page.waitForSelector(
+                    'button, input[type="submit"]',
+                    { visible: true, timeout: 5000 }
+                );
 
-                // Fill username/email
-                for (let sel of userSelectors) {
-                    const el = await page.$(sel);
-                    if (el) {
-                        await el.click({ clickCount: 3 });
-                        await el.type(username, { delay: 50 });
-                        userFieldFound = true;
-                        break;
-                    }
-                }
+                // 🔥 FIX: make button clickable
+                await btn.evaluate(el => el.scrollIntoView());
+                await page.waitForTimeout(500);
 
-                // Fill password
-                for (let sel of passSelectors) {
-                    const el = await page.$(sel);
-                    if (el) {
-                        await el.click({ clickCount: 3 });
-                        await el.type(password, { delay: 50 });
-                        passFieldFound = true;
-                        break;
-                    }
-                }
+                await Promise.all([
+                    btn.click({ delay: 50 }),
+                    page.waitForNavigation({ timeout: 10000 }).catch(() => {})
+                ]);
 
-                // Click login button
-                for (let sel of buttonSelectors) {
-                    const btn = await page.$(sel);
-                    if (btn) {
-                        await Promise.all([
-                            btn.click(),
-                            page.waitForNavigation({ timeout: 10000 }).catch(() => {})
-                        ]);
-                        loginClicked = true;
-                        break;
-                    }
-                }
-
-                // Detect success
-                const currentUrl = page.url();
-
-                let success = false;
-
-                if (currentUrl !== url) {
-                    success = true;
-                } else {
-                    const stillHasPassword = await page.$('input[type="password"]');
-                    if (!stillHasPassword) success = true;
-                }
+                const success = page.url() !== url;
 
                 results.push({
                     test: "Login Test",
-                    status: success ? "Passed" : "Failed",
-                    details: {
-                        userFieldFound,
-                        passFieldFound,
-                        loginClicked
-                    }
+                    status: success ? "Passed" : "Failed"
                 });
 
             } catch (err) {
@@ -126,7 +81,7 @@ app.post('/test', async (req, res) => {
         }
 
         // ======================
-        // 📄 PAGE LOAD TEST
+        // 📄 PAGE LOAD
         // ======================
         const title = await page.title();
 
@@ -145,7 +100,7 @@ app.post('/test', async (req, res) => {
         });
 
         // ======================
-        // 🔗 BROKEN LINKS TEST
+        // 🔗 BROKEN LINKS
         // ======================
         const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -168,8 +123,7 @@ app.post('/test', async (req, res) => {
         results.push({
             test: "Broken Links",
             status: brokenLinks.length ? "Failed" : "Passed",
-            brokenCount: brokenLinks.length,
-            sample: brokenLinks.slice(0, 5)
+            brokenCount: brokenLinks.length
         });
 
         await browser.close();
@@ -183,13 +137,11 @@ app.post('/test', async (req, res) => {
         if (browser) await browser.close();
 
         res.json({
-            results: [
-                {
-                    test: "Page Load",
-                    status: "Failed",
-                    error: err.message
-                }
-            ]
+            results: [{
+                test: "Page Load",
+                status: "Failed",
+                error: err.message
+            }]
         });
     }
 });
