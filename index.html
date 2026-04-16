@@ -117,7 +117,6 @@ async function testWebsite() {
         return;
     }
 
-    // 🔥 Loader UI
     document.getElementById("output").innerHTML = `
         <div class="loader">
             <div class="spinner"></div>
@@ -160,12 +159,12 @@ async function testWebsite() {
         html += `</div>`;
     });
 
-    // Screenshot
+    // ✅ FIXED Screenshot (Base64)
     if (data.screenshot) {
         html += `
             <div class="card">
                 <h3>📸 Screenshot</h3>
-                <img src="http://localhost:3000/${data.screenshot}" />
+                <img src="${data.screenshot}" />
             </div>
         `;
     }
