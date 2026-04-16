@@ -1,18 +1,15 @@
 {
   "name": "web-tester-final",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Website tester",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "node-fetch": "^3.3.2",
-    "playwright": "^1.59.1"
+    "puppeteer": "^22.0.0",
+    "node-fetch": "^3.3.2"
   }
 }
