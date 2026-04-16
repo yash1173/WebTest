@@ -28,11 +28,11 @@ app.post('/test', async (req, res) => {
         let results = [];
 
         // ======================
-        // 🔐 LOGIN TEST (STABLE)
+        // 🔐 LOGIN TEST (FIXED)
         // ======================
         if (username && password) {
             try {
-                // wait for inputs
+                // USERNAME
                 const userField = await page.waitForSelector(
                     'input[type="text"], input[type="email"]',
                     { visible: true, timeout: 5000 }
@@ -41,6 +41,7 @@ app.post('/test', async (req, res) => {
                 await userField.click({ clickCount: 3 });
                 await userField.type(username, { delay: 50 });
 
+                // PASSWORD
                 const passField = await page.waitForSelector(
                     'input[type="password"]',
                     { visible: true, timeout: 5000 }
@@ -49,13 +50,28 @@ app.post('/test', async (req, res) => {
                 await passField.click({ clickCount: 3 });
                 await passField.type(password, { delay: 50 });
 
-                // wait for button
-                const btn = await page.waitForSelector(
-                    'button, input[type="submit"]',
-                    { visible: true, timeout: 5000 }
-                );
+                // ======================
+                // 🔥 SMART BUTTON FIND
+                // ======================
+                let btn;
 
-                // 🔥 FIX: make button clickable
+                const buttonSelectors = [
+                    '#submit',
+                    'button[type="submit"]',
+                    'input[type="submit"]',
+                    'button'
+                ];
+
+                for (let sel of buttonSelectors) {
+                    try {
+                        btn = await page.waitForSelector(sel, { visible: true, timeout: 2000 });
+                        if (btn) break;
+                    } catch {}
+                }
+
+                if (!btn) throw new Error("Login button not found");
+
+                // Fix click issue
                 await btn.evaluate(el => el.scrollIntoView());
                 await page.waitForTimeout(500);
 
@@ -64,6 +80,7 @@ app.post('/test', async (req, res) => {
                     page.waitForNavigation({ timeout: 10000 }).catch(() => {})
                 ]);
 
+                // RESULT
                 const success = page.url() !== url;
 
                 results.push({
@@ -92,7 +109,7 @@ app.post('/test', async (req, res) => {
         });
 
         // ======================
-        // 📸 SCREENSHOT (BASE64)
+        // 📸 SCREENSHOT
         // ======================
         const screenshot = await page.screenshot({
             encoding: 'base64',
@@ -151,7 +168,7 @@ app.get('/', (req, res) => {
     res.send("🚀 Website Tester API Running");
 });
 
-// SERVER START
+// START SERVER
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
