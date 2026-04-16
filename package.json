@@ -1,7 +1,6 @@
 {
   "name": "web-tester-final",
   "version": "1.0.0",
-  "description": "Website tester",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
