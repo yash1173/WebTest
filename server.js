@@ -6,7 +6,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // serve screenshots
 
 app.post('/test', async (req, res) => {
     const { url } = req.body;
@@ -38,7 +38,7 @@ app.post('/test', async (req, res) => {
         });
 
         // FAST LINK CHECK
-        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
         let brokenLinks = [];
 
@@ -64,9 +64,12 @@ app.post('/test', async (req, res) => {
 
         await browser.close();
 
+        // 🔥 IMPORTANT FIX (FULL URL)
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
         res.json({
             results,
-            screenshot: screenshotPath
+            screenshot: `${baseUrl}/${screenshotPath}`
         });
 
     } catch (err) {
