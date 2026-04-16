@@ -32,26 +32,27 @@ app.post('/test', async (req, res) => {
         // ======================
         if (username && password) {
             try {
-                // Username
+                // USERNAME FIELD
                 const userField = await page.waitForSelector(
                     'input[type="text"], input[type="email"]',
                     { visible: true, timeout: 5000 }
                 );
 
                 await userField.click({ clickCount: 3 });
-                await userField.type(username, { delay: 50 });
+                await userField.type(username);
 
-                // Password
+                // PASSWORD FIELD
                 const passField = await page.waitForSelector(
                     'input[type="password"]',
                     { visible: true, timeout: 5000 }
                 );
 
                 await passField.click({ clickCount: 3 });
-                await passField.type(password, { delay: 50 });
+                await passField.type(password);
 
-                // Button detection
+                // BUTTON (SMART FIND)
                 let btn;
+
                 const selectors = [
                     '#submit',
                     'button[type="submit"]',
@@ -68,14 +69,16 @@ app.post('/test', async (req, res) => {
 
                 if (!btn) throw new Error("Login button not found");
 
-                // Scroll + wait fix
+                // Scroll into view (NO waitForTimeout)
                 await btn.evaluate(el => el.scrollIntoView());
-                await new Promise(r => setTimeout(r, 500));
 
-                await Promise.all([
-                    btn.click({ delay: 50 }),
-                    page.waitForNavigation({ timeout: 10000 }).catch(() => {})
-                ]);
+                // Click safely
+                await btn.click();
+
+                // Wait for navigation (optional)
+                try {
+                    await page.waitForNavigation({ timeout: 8000 });
+                } catch {}
 
                 const success = page.url() !== url;
 
